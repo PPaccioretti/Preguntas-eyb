@@ -5,7 +5,8 @@ Herramienta para hacer preguntas en vivo en clase. Los estudiantes responden des
 - `index.html`: página de estudiantes (`?sala=com1` … `com7`)
 - `docente.html`: panel docente (cargar preguntas, descargar respuestas)
 - `docente.html?vista=qr`: diapositiva con el QR de la comisión
-- `docente.html?q=ID`: diapositiva de una pregunta
+- `docente.html?q=ID`: vista de una pregunta (la abre el botón "Votar en vivo")
+- `diapositivas.js`: genera el .pptx desde el panel
 - `firestore.rules`: reglas de seguridad
 - `preguntas_ejemplo.csv`: 5 preguntas de ejemplo y formato del banco
 - `config.js`: **el único archivo que hay que editar**
@@ -41,6 +42,10 @@ Herramienta para hacer preguntas en vivo en clase. Los estudiantes responden des
 4. Recargá la página y ya entrás al panel. Otros docentes de comisión hacen lo mismo y vos agregás sus UID.
 
 ### 4. Cargar preguntas
+Hay dos formas, y podés combinarlas:
+- **Desde el panel:** con **＋ Nueva pregunta**, o con **✏️ Editar**, **⧉ Duplicar** y **Borrar** (dos clics) en cada fila. El ID no se cambia al editar, porque está en la URL de la diapositiva.
+- **Carga masiva desde Excel:** se explica abajo. **Descargar banco (CSV)** baja lo que hay, lo editás y lo volvés a cargar.
+
 En el panel, en **Banco de preguntas**, elegí el CSV y hacé clic en **Cargar CSV**. Si cargás de nuevo un ID que ya existe, la pregunta se actualiza.
 
 Formato (separador `;` o `,`, primera fila de encabezados):
@@ -60,24 +65,29 @@ En Excel: **Guardar como → CSV UTF-8**. El CSV común (`;`) también funciona.
 
 ---
 
-## En PowerPoint
+## En PowerPoint (con hipervínculos, sin complementos)
 
-1. **Insertar → Complementos → Obtener complementos**: buscá **Web Viewer** y agregalo.
-2. **Diapositiva QR**: insertá un Web Viewer con `https://TU-USUARIO.github.io/preguntas-eyb/docente.html?vista=qr`. La primera vez te pide ingresar con tu correo y contraseña.
-3. **Diapositiva de pregunta**: en el panel, hacé clic en **Copiar URL** junto a la pregunta y pegala en un Web Viewer en la diapositiva que corresponda (después del tema).
-4. **La misma presentación sirve para todas las comisiones**: al empezar la clase elegís la comisión en el selector de arriba a la derecha de la diapositiva QR, y todas las diapositivas pasan a esa comisión.
+1. En el panel, elegí la **comisión** arriba a la derecha y hacé clic en **⬇ Descargar diapositivas (.pptx)**. Se descarga una presentación con:
+   - una diapositiva con el **QR de esa comisión**, que se muestra sin abrir el navegador;
+   - **una diapositiva por pregunta** del banco, con el enunciado, las opciones y un botón **▶ Votar en vivo** que abre esa pregunta en el navegador. En las notas del orador están la respuesta correcta y la explicación.
+2. Copiá las diapositivas que necesites a tu presentación de clase (copiar y pegar o *Reutilizar diapositivas*). Los vínculos se mantienen.
+3. Si cambiás o agregás preguntas, descargá el `.pptx` de nuevo.
 
 **Durante la clase**
+- Antes de empezar, abrí `docente.html` en el navegador de la PC del aula e iniciá sesión. Queda guardado.
+- En la diapositiva de la pregunta, en modo presentación, hacé clic en **▶ Votar en vivo**. Se abre el navegador; apretá **F11** para pantalla completa.
+- Usá los botones como siempre y, al terminar, **Alt+Tab** para volver a PowerPoint.
+- Cada clic en "Votar en vivo" abre una pestaña nueva. Podés cerrarlas con **Ctrl+W** antes de volver.
+
+**Botones de la vista de pregunta**
 - **▶ Lanzar pregunta**: aparece en los celulares. Mientras está abierta, solo se ve el contador de respuestas. Si querés ver la distribución en vivo, marcá la casilla.
 - **■ Cerrar votación**: aparece el gráfico de barras.
 - **✓ Mostrar respuesta**: se marca la correcta y se muestra la explicación en pantalla. Si la casilla **"enviarla también a los celulares"** está desmarcada, los estudiantes solo leen *"La respuesta se discute en clase"*. Más tarde podés usar **Enviar a celulares**.
 - **Terminar**: los celulares vuelven a "Esperando la próxima pregunta".
 - **↺ Relanzar** (dos clics): vuelve a votar de cero. Sirve para la técnica de "votar, discutir de a pares y volver a votar".
 
-**Detalles a probar antes de la primera clase**
-- Después de tocar un botón dentro del visor, hacé clic en el borde de la diapositiva, fuera del visor, para que las flechas o el control remoto vuelvan a pasar diapositivas.
+**Antes de la primera clase**
 - Probá todo en **modo presentación** en la computadora del aula.
-- Plan B, si el complemento no funciona en esa PC: un hipervínculo en la diapositiva que abra la misma URL en el navegador.
 - Para probar como estudiante usá un celular o una ventana de incógnito, **no** el mismo navegador donde iniciaste sesión como docente.
 
 ---

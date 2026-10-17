@@ -4,6 +4,7 @@ import {
   onSnapshot, query, where, writeBatch, serverTimestamp
 } from "./fb.js";
 import { SALAS, MATERIA } from "./config.js";
+import { generarPptx } from "./diapositivas.js";
 import { LETRAS, esc, fmt, hoy, nuevoId, lsGet, lsSet, leerArchivoTexto, parseCSV, toCSV, descargar, filasABanco } from "./util.js";
 
 const params = new URLSearchParams(location.search);
@@ -274,6 +275,8 @@ function iniciarPanel() {
           <label><input type="checkbox" id="f-reemp"> reemplazar todo el banco</label>
           <button class="btn" id="b-cargar">Cargar CSV</button>
           <button class="btn" id="b-desc-banco">Descargar banco (CSV)</button></div>
+        <div class="fila" style="margin-top:12px"><button class="btn primario" id="b-pptx">⬇ Descargar diapositivas (.pptx)</button>
+          <span class="nota">Diapositiva con el QR de la comisión elegida arriba + una diapositiva por pregunta con su botón "Votar en vivo".</span></div>
         <div id="msg-banco" class="nota" style="margin-top:8px"></div>
         <div id="tabla-banco" style="margin-top:12px;overflow-x:auto"></div>
       </div>
@@ -410,6 +413,19 @@ function iniciarPanel() {
     banco.forEach(p => filas.push([p.id, p.tema, p.texto, ...[0, 1, 2, 3, 4].map(i => p.opciones[i] || ""),
       LETRAS[p.correcta], p.explicacion, p.revelarCelular === false ? "no" : "si", p.imagen]));
     descargar("banco_preguntas.csv", toCSV(filas));
+  };
+
+  root.querySelector("#b-pptx").onclick = async () => {
+    if (!banco.length) return aviso("El banco está vacío.", true);
+    try {
+      const url = urlAlumno(salaId);
+      const qr = qrcode(0, "M"); qr.addData(url); qr.make();
+      const pres = generarPptx(window.PptxGenJS, {
+        banco, urlDiapo, urlQR: urlQR(), urlAlumno: url, salaNombre: nombreSala(salaId), materia: MATERIA,
+        qrData: qr.createDataURL(10, 2).replace(/^data:/, "")
+      });
+      await pres.writeFile({ fileName: `preguntas_${salaId}.pptx` });
+    } catch (e) { aviso("Error al generar: " + e.message, true); }
   };
 
   async function filasRespuestas(ids) {
