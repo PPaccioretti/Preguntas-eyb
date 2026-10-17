@@ -25,9 +25,20 @@ service cloud.firestore {
         && r.ts == request.time;
     }
 
+    // Docentes: cualquier docente habilitado aprueba a otros (o los quita, menos a sí mismo)
     match /docentes/{uid} {
-      allow read: if request.auth != null && request.auth.uid == uid;
-      allow write: if false;            // solo desde la consola
+      allow read: if request.auth != null && (request.auth.uid == uid || esDocente());
+      allow create, update: if esDocente();
+      allow delete: if esDocente() && request.auth.uid != uid;
+    }
+
+    // Pedidos de acceso: los crea la propia cuenta (no anónima); los ven y borran los docentes
+    match /solicitudes/{uid} {
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.auth.token.firebase.sign_in_provider != 'anonymous'
+        && request.resource.data.keys().hasOnly(['nombre', 'email', 'ts']);
+      allow read: if request.auth != null && (request.auth.uid == uid || esDocente());
+      allow delete: if esDocente();
     }
 
     match /preferencias/{uid} {

@@ -11,7 +11,8 @@ export function generarPptx(PptxGenJS, { banco, urlDiapo, urlQR, urlAlumno, qrDa
   pres.theme = { headFontFace: "Calibri", bodyFontFace: "Calibri" };
   pres.title = `${materia} — preguntas en clase`;
 
-  // ---------- diapositiva del QR
+  // ---------- diapositiva del QR (opcional)
+  if (qrData) {
   const s0 = pres.addSlide();
   s0.background = { color: VERDE };
   s0.addText("Respondé desde el celular", {
@@ -31,6 +32,7 @@ export function generarPptx(PptxGenJS, { banco, urlDiapo, urlQR, urlAlumno, qrDa
   s0.addImage({ data: qrData, x: 8.15, y: 1.25, w: 4.6, h: 4.6, objectName: "QR" });
   s0.addText(salaNombre, { x: 7.85, y: 5.9, w: 5.2, h: 0.5, fontSize: 18, bold: true, color: VERDE, align: "center", isTextBox: true, margin: 0 });
   s0.addNotes(`QR de ${salaNombre}: ${urlAlumno}\nPara otra comisión: descargá las diapositivas eligiendo esa comisión en el panel, o usá el botón "Mostrar QR en vivo".`);
+  }
 
   // ---------- una diapositiva por pregunta
   banco.forEach(p => {

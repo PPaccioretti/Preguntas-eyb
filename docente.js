@@ -5,6 +5,7 @@ import {
 } from "./fb.js";
 import { SALAS, MATERIA } from "./config.js";
 import { generarPptx } from "./diapositivas.js";
+import { analizarPptx, agregarBotones } from "./pptx_proc.js";
 import { LETRAS, esc, fmt, hoy, nuevoId, lsGet, lsSet, leerArchivoTexto, parseCSV, toCSV, descargar, filasABanco } from "./util.js";
 
 const params = new URLSearchParams(location.search);
@@ -80,13 +81,26 @@ function traducir(e) {
 
 function renderNoHabilitado() {
   root.innerHTML = `<div class="wrap"><div class="card">
-    <h2>Cuenta no habilitada como docente</h2>
-    <p>Ingresaste como <b>${esc(user.email || "")}</b>. Para habilitarla, en la consola de Firebase andá a
-    <b>Firestore Database → colección <code>docentes</code> → Agregar documento</b> y usá como ID del documento:</p>
-    <p><code style="font-size:15px">${esc(user.uid)}</code> <button class="btn chico" id="cp">Copiar</button></p>
-    <p class="nota">El documento puede tener un solo campo, por ejemplo <code>nombre</code> = tu nombre. Después recargá esta página.</p>
+    <h2>Pedir acceso como docente</h2>
+    <p>Ingresaste como <b>${esc(user.email || "")}</b>. Escribí tu nombre y enviá la solicitud:
+    cualquier docente ya habilitado la puede aprobar desde su panel.</p>
+    <div class="fila"><input type="text" id="nom" placeholder="Nombre y apellido" style="max-width:320px">
+      <button class="btn primario" id="env">Enviar solicitud</button></div>
+    <p id="msg" class="nota"></p>
     <button class="btn" id="out">Salir</button></div></div>`;
-  root.querySelector("#cp").onclick = () => navigator.clipboard?.writeText(user.uid);
+  const msg = root.querySelector("#msg");
+  getDoc(doc(db, "solicitudes", user.uid)).then(d => {
+    if (d.exists()) { msg.textContent = "Tu solicitud ya fue enviada. Esta página se actualiza sola cuando la aprueben."; root.querySelector("#nom").value = d.data().nombre || ""; }
+  }).catch(() => {});
+  root.querySelector("#env").onclick = async () => {
+    const nombre = root.querySelector("#nom").value.trim();
+    if (!nombre) { msg.textContent = "Escribí tu nombre."; return; }
+    try {
+      await setDoc(doc(db, "solicitudes", user.uid), { nombre, email: user.email || "", ts: serverTimestamp() });
+      msg.textContent = "Solicitud enviada. Esta página se actualiza sola cuando la aprueben.";
+    } catch (e) { msg.textContent = "Error: " + e.message; }
+  };
+  onSnapshot(doc(db, "docentes", user.uid), d => { if (d.exists()) location.reload(); }, () => {});
   root.querySelector("#out").onclick = () => signOut(auth);
 }
 
@@ -191,6 +205,7 @@ async function iniciarDiapo() {
     let ctrl = "";
     if (estado === "inactiva") {
       ctrl = `<button class="btn primario" id="c-lanzar" ${dis}>▶ Lanzar pregunta</button>
+        <span class="nota">${esc(nombreSala(salaId))}</span>
         ${otra ? `<span class="nota">Hay otra pregunta activa (${esc(otra)}); se reemplazará.</span>` : ""}`;
     } else {
       ctrl = `<span class="contador">${total} ${total === 1 ? "respuesta" : "respuestas"}</span>`;
@@ -217,7 +232,8 @@ async function iniciarDiapo() {
           ${revelada && p.explicacion ? `<div class="explicacion">${fmt(p.explicacion)}</div>` : ""}</div>
       </div>
       <div class="controles">${ctrl}${error ? `<span class="error">${esc(error)}</span>` : ""}
-        ${estado === "abierta" ? `<div class="mini-qr">${qrSvg(urlAlumno(salaId))}<span>¿Cerraste la página?<br>Escaneá de nuevo</span></div>` : ""}</div>`;
+        ${estado === "abierta" ? `<div class="mini-qr">${qrSvg(urlAlumno(salaId))}<span>¿Cerraste la página?<br>Escaneá de nuevo</span></div>` : ""}
+        ${estado === "inactiva" ? `<div class="mini-qr grande">${qrSvg(urlAlumno(salaId))}<span><b>Escaneá para responder</b><br>${esc(nombreSala(salaId))}<br>Sin cuenta, anónimo</span></div>` : ""}</div>`;
 
     conectarSelector();
     const on = (id, fn) => { const b = root.querySelector(id); if (b) b.onclick = fn; };
@@ -264,22 +280,30 @@ function iniciarPanel() {
     <div class="wrap" style="max-width:960px">
       <div class="card"><h2>Comisión activa</h2><div id="estado-sala"></div>
         <p class="nota" style="margin-top:12px">Enlace para estudiantes: <code id="url-alu"></code> <button class="btn chico" id="cp-alu">Copiar</button></p>
-        <p class="nota">Diapositiva con el QR (sirve para todas las comisiones): <code>${esc(urlQR())}</code>
+        <p class="nota">QR en pantalla completa: <code>${esc(urlQR())}</code>
           <button class="btn chico" id="cp-qr">Copiar</button> <a href="${esc(urlQR())}" target="_blank">abrir</a></p>
       </div>
+      <div class="card"><h2>Agregar preguntas desde una presentación</h2>
+        <p class="nota" style="margin-top:0">Armá la pregunta en PowerPoint como cualquier diapositiva: opciones con letras A, B, C… y en las
+          <b>notas del orador</b> escribí <code>Respuesta B</code> seguido de la explicación. Subí acá el archivo: las preguntas se cargan al banco
+          y se descarga la misma presentación con el botón <b>▶ Votar en vivo</b> en cada pregunta. El archivo no se sube a ningún servidor.</p>
+        <div class="fila"><input type="file" id="f-pptx" accept=".pptx"><button class="btn primario" id="b-analizar">Analizar presentación</button></div>
+        <div id="res-pptx" style="margin-top:10px"></div>
+      </div>
       <div class="card"><h2>Banco de preguntas</h2>
-        <div class="fila"><button class="btn primario" id="b-nueva">＋ Nueva pregunta</button></div>
+        <div class="fila"><button class="btn primario" id="b-nueva">＋ Nueva pregunta</button>
+          <input type="text" id="filtro" placeholder="Buscar por ID, tema o texto" style="max-width:280px">
+          <button class="btn" id="b-pptx">⬇ Diapositivas de las seleccionadas</button></div>
         <div id="editor"></div>
-        <p class="nota" style="margin:14px 0 6px">Carga masiva desde Excel (CSV):</p>
-        <div class="fila"><input type="file" id="f-csv" accept=".csv,text/csv">
-          <label><input type="checkbox" id="f-reemp"> reemplazar todo el banco</label>
-          <button class="btn" id="b-cargar">Cargar CSV</button>
-          <button class="btn" id="b-desc-banco">Descargar banco (CSV)</button></div>
-        <div class="fila" style="margin-top:12px"><button class="btn primario" id="b-pptx">⬇ Descargar diapositivas (.pptx)</button>
-          <span class="nota">Diapositiva con el QR de la comisión elegida arriba + una diapositiva por pregunta con su botón "Votar en vivo".</span></div>
         <div id="msg-banco" class="nota" style="margin-top:8px"></div>
         <div id="tabla-banco" style="margin-top:12px;overflow-x:auto"></div>
+        <details style="margin-top:12px"><summary class="nota">Carga masiva desde Excel (CSV)</summary>
+          <div class="fila" style="margin-top:8px"><input type="file" id="f-csv" accept=".csv,text/csv">
+            <label><input type="checkbox" id="f-reemp"> reemplazar todo el banco</label>
+            <button class="btn" id="b-cargar">Cargar CSV</button>
+            <button class="btn" id="b-desc-banco">Descargar banco (CSV)</button></div></details>
       </div>
+      <div class="card"><h2>Docentes</h2><div id="docentes"></div></div>
       <div class="card"><h2>Respuestas</h2>
         <div class="fila"><button class="btn" id="b-exp">Descargar respuestas de esta comisión</button>
         <button class="btn" id="b-exp-todo">Descargar todas las comisiones</button></div>
@@ -308,19 +332,30 @@ function iniciarPanel() {
   };
   renderEstado();
 
+  let filtro = "", seleccion = new Set();
+  const visibles = () => banco.filter(p => !filtro || `${p.id} ${p.tema} ${p.texto}`.toLowerCase().includes(filtro));
   async function cargarBanco() {
     const snap = await getDocs(collection(db, "banco"));
-    banco = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0) || a.id.localeCompare(b.id));
+    banco = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.tema || "").localeCompare(b.tema || "") || (a.orden ?? 0) - (b.orden ?? 0) || a.id.localeCompare(b.id));
+    seleccion = new Set([...seleccion].filter(id => banco.some(p => p.id === id)));
+    renderTabla();
+  }
+  function renderTabla() {
     const t = root.querySelector("#tabla-banco");
-    if (!banco.length) { t.innerHTML = `<p class="nota">El banco está vacío. Cargá un CSV (ver <code>preguntas_ejemplo.csv</code>).</p>`; return; }
-    t.innerHTML = `<table><tr><th>ID</th><th>Tema</th><th>Pregunta</th><th>Corr.</th><th>Celular</th><th>Diapositiva</th><th></th></tr>${
-      banco.map(p => `<tr><td><b>${esc(p.id)}</b></td><td>${esc(p.tema)}</td><td>${esc(p.texto.slice(0, 110))}${p.texto.length > 110 ? "…" : ""}</td>
-        <td>${LETRAS[p.correcta]}</td><td>${p.revelarCelular === false ? "no" : "sí"}</td>
-        <td style="white-space:nowrap"><button class="btn chico" data-cp="${esc(p.id)}">Copiar URL</button>
-        <a href="${esc(urlDiapo(p.id))}" target="_blank">abrir</a></td>
+    if (!banco.length) { t.innerHTML = `<p class="nota">El banco está vacío.</p>`; return; }
+    const vis = visibles();
+    t.innerHTML = `<table><tr><th><input type="checkbox" id="sel-todo" title="Seleccionar las visibles" ${vis.length && vis.every(p => seleccion.has(p.id)) ? "checked" : ""}></th><th>ID</th><th>Tema</th><th>Pregunta</th><th>Corr.</th><th>Votación</th><th></th></tr>${
+      vis.map(p => `<tr><td><input type="checkbox" data-sel="${esc(p.id)}" ${seleccion.has(p.id) ? "checked" : ""}></td>
+        <td><b>${esc(p.id)}</b></td><td>${esc(p.tema)}</td><td>${esc(p.texto.slice(0, 110))}${p.texto.length > 110 ? "…" : ""}</td>
+        <td>${LETRAS[p.correcta]}</td>
+        <td style="white-space:nowrap"><a href="${esc(urlDiapo(p.id))}" target="_blank">abrir</a>
+        <button class="btn chico" data-cp="${esc(p.id)}">Copiar URL</button></td>
         <td style="white-space:nowrap"><button class="btn chico" data-ed="${esc(p.id)}">✏️ Editar</button>
         <button class="btn chico" data-dup="${esc(p.id)}" title="Duplicar">⧉</button>
-        <button class="btn chico peligro" data-del="${esc(p.id)}">Borrar</button></td></tr>`).join("")}</table>`;
+        <button class="btn chico peligro" data-del="${esc(p.id)}">Borrar</button></td></tr>`).join("")}</table>
+      <p class="nota">${vis.length} de ${banco.length} preguntas. Seleccionadas: ${seleccion.size}.</p>`;
+    t.querySelector("#sel-todo").onchange = e => { vis.forEach(p => e.target.checked ? seleccion.add(p.id) : seleccion.delete(p.id)); renderTabla(); };
+    t.querySelectorAll("[data-sel]").forEach(c => c.onchange = () => { c.checked ? seleccion.add(c.dataset.sel) : seleccion.delete(c.dataset.sel); renderTabla(); });
     t.querySelectorAll("[data-cp]").forEach(b => b.onclick = () => copiar(urlDiapo(b.dataset.cp), b));
     t.querySelectorAll("[data-ed]").forEach(b => b.onclick = () => abrirEditor(banco.find(p => p.id === b.dataset.ed)));
     t.querySelectorAll("[data-dup]").forEach(b => b.onclick = () => {
@@ -333,6 +368,7 @@ function iniciarPanel() {
       catch (e) { aviso("Error: " + e.message, true); }
     });
   }
+  root.querySelector("#filtro").oninput = e => { filtro = e.target.value.trim().toLowerCase(); renderTabla(); };
   cargarBanco().catch(e => (root.querySelector("#msg-banco").textContent = "Error: " + e.message));
 
   // ---------- editor de una pregunta
@@ -416,17 +452,102 @@ function iniciarPanel() {
   };
 
   root.querySelector("#b-pptx").onclick = async () => {
-    if (!banco.length) return aviso("El banco está vacío.", true);
+    const elegidas = banco.filter(p => seleccion.has(p.id));
+    if (!elegidas.length) return aviso("Marcá en la tabla las preguntas que querés llevar a PowerPoint.", true);
     try {
-      const url = urlAlumno(salaId);
-      const qr = qrcode(0, "M"); qr.addData(url); qr.make();
-      const pres = generarPptx(window.PptxGenJS, {
-        banco, urlDiapo, urlQR: urlQR(), urlAlumno: url, salaNombre: nombreSala(salaId), materia: MATERIA,
-        qrData: qr.createDataURL(10, 2).replace(/^data:/, "")
-      });
-      await pres.writeFile({ fileName: `preguntas_${salaId}.pptx` });
+      const pres = generarPptx(window.PptxGenJS, { banco: elegidas, urlDiapo, materia: MATERIA });
+      await pres.writeFile({ fileName: `preguntas_${hoy()}.pptx` });
+      aviso(`Descargadas ${elegidas.length} diapositivas. En PowerPoint: Inicio → Nueva diapositiva → Reutilizar diapositivas, o copiar y pegar.`);
     } catch (e) { aviso("Error al generar: " + e.message, true); }
   };
+
+  // ---------- procesar una presentación
+  let analisis = null;
+  root.querySelector("#b-analizar").onclick = async () => {
+    const out = root.querySelector("#res-pptx");
+    const f = root.querySelector("#f-pptx").files[0];
+    if (!f) { out.innerHTML = `<span class="error">Elegí un archivo .pptx.</span>`; return; }
+    out.textContent = "Analizando…";
+    try {
+      const res = await analizarPptx(f);
+      const pref = (f.name.match(/\d+/) ? "C" + f.name.match(/\d+/)[0].padStart(2, "0") : f.name.replace(/\.pptx$/i, "").replace(/[^A-Za-z0-9]/g, "").slice(0, 8) || "P");
+      const tema = f.name.replace(/\.pptx$/i, "").replace(/^\d+[_\s-]*/, "").replace(/_/g, " ");
+      const usados = new Set(banco.map(p => p.id));
+      let k = 1;
+      const filas = res.slides.filter(sl => sl.pregunta).map(sl => {
+        let id = sl.idExistente;
+        if (!id) { do { id = `${pref}-${k++}`; } while (usados.has(id)); usados.add(id); }
+        return { sl, id, nueva: !banco.some(p => p.id === id) };
+      });
+      const temaPrevio = filas.map(r => banco.find(p => p.id === r.id)?.tema).find(Boolean);
+      analisis = { res, filas, nombre: f.name, tema: temaPrevio || tema };
+      if (!filas.length) {
+        out.innerHTML = `<span class="error">No encontré preguntas. Cada diapositiva de pregunta necesita opciones con letras (A, B, C…) y en las notas "Respuesta X".</span>`;
+        return;
+      }
+      out.innerHTML = `<p><b>${filas.length}</b> pregunta(s) en <b>${esc(f.name)}</b>:</p>
+        <table><tr><th>Diap.</th><th>ID</th><th>Pregunta</th><th>Opc.</th><th>Corr.</th><th></th></tr>${filas.map(r => `<tr>
+          <td>${r.sl.n}</td><td><b>${esc(r.id)}</b></td><td>${esc(r.sl.pregunta.texto.slice(0, 120))}</td>
+          <td>${r.sl.pregunta.opciones.length}</td><td>${LETRAS[r.sl.pregunta.correcta]}</td>
+          <td class="nota">${r.nueva ? "nueva" : "actualiza"}${r.sl.idExistente ? "" : " · agrega botón"}</td></tr>`).join("")}</table>
+        <div class="fila" style="margin-top:10px"><label>Tema <input type="text" id="p-tema" value="${esc(analisis.tema)}" style="width:260px"></label>
+          <button class="btn primario" id="b-aplicar">Cargar al banco y descargar la presentación</button></div>`;
+      out.querySelector("#b-aplicar").onclick = aplicar;
+    } catch (e) { out.innerHTML = `<span class="error">No se pudo leer el archivo: ${esc(e.message)}</span>`; }
+  };
+  async function aplicar() {
+    const out = root.querySelector("#res-pptx");
+    const { res, filas, nombre } = analisis;
+    const tema = out.querySelector("#p-tema").value.trim();
+    try {
+      const b = writeBatch(db);
+      filas.forEach((r, i) => {
+        const prev = banco.find(p => p.id === r.id) || {};
+        const q = r.sl.pregunta;
+        b.set(doc(db, "banco", r.id), {
+          id: r.id, orden: i, tema: tema || prev.tema || "", texto: q.texto, opciones: q.opciones, correcta: q.correcta,
+          explicacion: q.explicacion, revelarCelular: prev.revelarCelular !== false, imagen: prev.imagen || "",
+          fuente: nombre, diapositiva: r.sl.n
+        });
+      });
+      await b.commit();
+      const blob = await agregarBotones(res, filas.map(r => ({ slide: r.sl, url: urlDiapo(r.id) })));
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob); a.download = nombre;
+      document.body.appendChild(a); a.click(); a.remove();
+      out.innerHTML = `<p>Listo: ${filas.length} pregunta(s) en el banco. Se descargó <b>${esc(nombre)}</b> con los botones: reemplazá con ella tu archivo.</p>`;
+      await cargarBanco();
+    } catch (e) { out.innerHTML = `<span class="error">Error: ${esc(e.message)}</span>`; }
+  }
+
+  // ---------- docentes y solicitudes
+  async function cargarDocentes() {
+    const el = root.querySelector("#docentes");
+    try {
+      const [sol, docs] = await Promise.all([getDocs(collection(db, "solicitudes")), getDocs(collection(db, "docentes"))]);
+      const pend = sol.docs.map(d => ({ uid: d.id, ...d.data() }));
+      el.innerHTML = `${pend.length ? `<p><b>Solicitudes pendientes</b></p>${pend.map(p => `<div class="fila" style="margin-bottom:6px">
+          ${esc(p.nombre)} <span class="nota">${esc(p.email)}</span>
+          <button class="btn chico primario" data-ok="${p.uid}">Aprobar</button><button class="btn chico peligro" data-no="${p.uid}">Rechazar</button></div>`).join("")}`
+        : `<p class="nota">No hay solicitudes pendientes. Para sumar un docente, pasale el enlace de este panel: crea su cuenta y pide acceso.</p>`}
+        <p style="margin-top:12px"><b>Habilitados</b></p>${docs.docs.map(d => `<div class="fila" style="margin-bottom:4px">
+          ${esc(d.data().nombre || "")} <span class="nota">${esc(d.data().email || d.id)}</span>
+          ${d.id === user.uid ? `<span class="nota">(vos)</span>` : `<button class="btn chico peligro" data-quitar="${d.id}">Quitar</button>`}</div>`).join("")}`;
+      el.querySelectorAll("[data-ok]").forEach(b => b.onclick = async () => {
+        const p = pend.find(x => x.uid === b.dataset.ok);
+        const wb = writeBatch(db);
+        wb.set(doc(db, "docentes", p.uid), { nombre: p.nombre, email: p.email, aprobadoPor: user.email || "", ts: serverTimestamp() });
+        wb.delete(doc(db, "solicitudes", p.uid));
+        await wb.commit(); cargarDocentes();
+      });
+      el.querySelectorAll("[data-no]").forEach(b => b.onclick = async () => { await deleteDoc(doc(db, "solicitudes", b.dataset.no)); cargarDocentes(); });
+      el.querySelectorAll("[data-quitar]").forEach(b => b.onclick = async () => {
+        if (b.dataset.conf !== "1") { b.dataset.conf = "1"; b.textContent = "¿Seguro?"; return; }
+        await deleteDoc(doc(db, "docentes", b.dataset.quitar)); cargarDocentes();
+      });
+    } catch (e) { el.innerHTML = `<span class="error">${esc(e.message)}</span>`; }
+  }
+  cargarDocentes();
 
   async function filasRespuestas(ids) {
     const porId = Object.fromEntries(banco.map(p => [p.id, p]));

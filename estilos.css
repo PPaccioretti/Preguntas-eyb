@@ -108,3 +108,6 @@ html:has(body.diapo), body.diapo { background: #fff; }
 .ed-op { display: flex; gap: 8px; align-items: center; }
 .ed-op input[type=radio] { width: 18px; height: 18px; accent-color: var(--ok); }
 @media (max-width: 600px) { .ed-grid { grid-template-columns: 1fr; } }
+
+.mini-qr.grande svg { width: min(17vw, 26vh); min-width: 110px; }
+.mini-qr.grande { font-size: clamp(12px, 1.4vw, 22px); color: var(--ink); }

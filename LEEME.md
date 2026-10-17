@@ -65,19 +65,31 @@ En Excel: **Guardar como → CSV UTF-8**. El CSV común (`;`) también funciona.
 
 ---
 
-## En PowerPoint (con hipervínculos, sin complementos)
+## Trabajo diario (cualquier docente, desde cualquier computadora)
 
-1. En el panel, elegí la **comisión** arriba a la derecha y hacé clic en **⬇ Descargar diapositivas (.pptx)**. Se descarga una presentación con:
-   - una diapositiva con el **QR de esa comisión**, que se muestra sin abrir el navegador;
-   - **una diapositiva por pregunta** del banco, con el enunciado, las opciones y un botón **▶ Votar en vivo** que abre esa pregunta en el navegador. En las notas del orador están la respuesta correcta y la explicación.
-2. Copiá las diapositivas que necesites a tu presentación de clase (copiar y pegar o *Reutilizar diapositivas*). Los vínculos se mantienen.
-3. Si cambiás o agregás preguntas, descargá el `.pptx` de nuevo.
+Todo se hace desde el panel `docente.html`. No hace falta instalar nada, ni tocar GitHub, ni que intervenga otra persona.
 
-**Durante la clase**
-- Antes de empezar, abrí `docente.html` en el navegador de la PC del aula e iniciá sesión. Queda guardado.
-- En la diapositiva de la pregunta, en modo presentación, hacé clic en **▶ Votar en vivo**. Se abre el navegador; apretá **F11** para pantalla completa.
-- Usá los botones como siempre y, al terminar, **Alt+Tab** para volver a PowerPoint.
-- Cada clic en "Votar en vivo" abre una pestaña nueva. Podés cerrarlas con **Ctrl+W** antes de volver.
+### Sumar docentes
+1. El docente nuevo abre el panel, elige **Crear cuenta** (correo y contraseña) y envía la **solicitud de acceso** con su nombre.
+2. Cualquier docente habilitado la ve en **Docentes** y hace clic en **Aprobar**. La página del nuevo docente se actualiza sola.
+
+### Agregar preguntas a una presentación de clase
+**Opción A: desde PowerPoint** (recomendada para las clases)
+1. Armá la diapositiva de la pregunta como siempre, con las opciones con letras **A, B, C…** (en formas separadas o como párrafos `A) texto`).
+2. En las **notas del orador** escribí `Respuesta B` seguido de la explicación.
+3. En el panel, en **Agregar preguntas desde una presentación**, subí el `.pptx` y hacé clic en **Analizar**. Revisá la lista y hacé clic en **Cargar al banco y descargar la presentación**.
+4. La presentación descargada es la misma con el botón **▶ Votar en vivo** en cada pregunta: reemplazá tu archivo por esa.
+5. Si después cambiás el texto o la respuesta en PowerPoint, volvé a procesarla: se actualiza el banco y no se duplican los botones.
+
+**Opción B: desde el banco**
+1. Creá o editá la pregunta con **＋ Nueva pregunta** o **✏️ Editar**.
+2. Buscala, marcala y hacé clic en **⬇ Diapositivas de las seleccionadas**.
+3. En PowerPoint, usá **Inicio → Nueva diapositiva → Reutilizar diapositivas** (o copiar y pegar) para traerlas a tu presentación.
+
+### En clase
+- Antes de empezar, abrí el panel en el navegador de la PC del aula e iniciá sesión.
+- En la diapositiva de la pregunta (modo presentación), hacé clic en **▶ Votar en vivo**. Se abre la vista de votación con el **QR de la comisión**: elegí la comisión arriba a la derecha y dales un minuto para escanear.
+- **▶ Lanzar**, **■ Cerrar**, **✓ Mostrar respuesta**. Después, **Alt+Tab** para volver a PowerPoint (o Ctrl+W para cerrar la pestaña).
 
 **Botones de la vista de pregunta**
 - **▶ Lanzar pregunta**: aparece en los celulares. Mientras está abierta, solo se ve el contador de respuestas. Si querés ver la distribución en vivo, marcá la casilla.
