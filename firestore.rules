@@ -1,0 +1,56 @@
+rules_version = '2';
+// Reglas de seguridad — copiar y pegar en Consola Firebase > Firestore > Reglas > Publicar
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Docente = cuenta cuyo UID figura en la colección "docentes" (se agrega a mano en la consola)
+    function esDocente() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/docentes/$(request.auth.uid));
+    }
+
+    function respuestaValida(sala, rid) {
+      let s = get(/databases/$(database)/documents/salas/$(sala)).data;
+      let r = request.resource.data;
+      return s.estado == 'abierta'
+        && r.keys().hasOnly(['uid', 'lanzamiento', 'qid', 'claseId', 'opcion', 'ts'])
+        && r.uid == request.auth.uid
+        && r.lanzamiento == s.lanzamiento
+        && r.qid == s.qid
+        && r.claseId == s.claseId
+        && rid == s.lanzamiento + '__' + request.auth.uid
+        && r.opcion is int
+        && r.opcion >= 0
+        && r.opcion < s.pregunta.opciones.size()
+        && r.ts == request.time;
+    }
+
+    match /docentes/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;            // solo desde la consola
+    }
+
+    match /preferencias/{uid} {
+      allow read, write: if esDocente() && request.auth.uid == uid;
+    }
+
+    // Banco de preguntas (con respuestas correctas): solo docentes
+    match /banco/{qid} {
+      allow read, write: if esDocente();
+    }
+
+    // Estado de cada comisión: lo leen los estudiantes (login anónimo), lo escribe el docente.
+    // La respuesta correcta solo aparece acá si el docente decide enviarla a los celulares.
+    match /salas/{sala} {
+      allow read: if request.auth != null;
+      allow write: if esDocente();
+
+      // Respuestas: cada estudiante crea/cambia SOLO la suya y solo con la votación abierta.
+      // Nadie más que el docente puede leerlas.
+      match /respuestas/{rid} {
+        allow read, delete: if esDocente();
+        allow create, update: if request.auth != null && respuestaValida(sala, rid);
+      }
+    }
+  }
+}
