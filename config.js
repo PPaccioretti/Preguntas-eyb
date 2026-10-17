@@ -5,12 +5,12 @@
 // 1) Pegá acá la configuración de tu app web de Firebase
 //    (Consola Firebase > ⚙ Configuración del proyecto > General > Tus apps > Web > "Configuración del SDK")
 export const firebaseConfig = {
-  apiKey: "PEGAR_AQUI",
-  authDomain: "PEGAR_AQUI.firebaseapp.com",
-  projectId: "PEGAR_AQUI",
-  storageBucket: "PEGAR_AQUI.appspot.com",
-  messagingSenderId: "PEGAR_AQUI",
-  appId: "PEGAR_AQUI"
+  apiKey: "AIzaSyDMXbWp7620PZ1oyHkdyQWnyZ2LUpAu50s",
+  authDomain: "eyb-preguntas.firebaseapp.com",
+  projectId: "eyb-preguntas",
+  storageBucket: "eyb-preguntas.firebasestorage.app",
+  messagingSenderId: "532172461192",
+  appId: "1:532172461192:web:a9ea5b87076cf37ad1fb3d"
 };
 
 // 2) Comisiones (salas). Cada una tiene su propio QR, fijo todo el cuatrimestre.
