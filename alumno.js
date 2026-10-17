@@ -4,8 +4,14 @@ import { LETRAS, esc, fmt, lsGet, lsSet } from "./util.js";
 
 const app = document.getElementById("app");
 document.getElementById("titulo").textContent = MATERIA;
-const salaId = new URLSearchParams(location.search).get("sala");
+const qs = new URLSearchParams(location.search);
+const recordada = lsGet("quiz_sala_alumno", null);
+if (!qs.get("sala") && !qs.has("elegir") && SALAS.some(s => s.id === recordada)) {
+  location.replace("?sala=" + recordada);
+}
+const salaId = qs.get("sala");
 const sala = SALAS.find(s => s.id === salaId);
+if (sala) lsSet("quiz_sala_alumno", sala.id);
 
 if (!sala) {
   app.innerHTML = `<div class="card"><h2>Elegí tu comisión</h2><div class="opciones">${
@@ -16,7 +22,7 @@ if (!sala) {
 }
 
 function iniciar() {
-  document.getElementById("sala-nombre").textContent = sala.nombre;
+  document.getElementById("sala-nombre").innerHTML = `${esc(sala.nombre)} <a href="?elegir" style="color:#fff;font-size:12px;margin-left:6px">cambiar</a>`;
   const claveLocal = "quiz_resp_" + sala.id;
   const mias = lsGet(claveLocal, {});        // lanzamiento -> opción elegida
   let s = null, uid = null, enviando = false, aviso = "";
